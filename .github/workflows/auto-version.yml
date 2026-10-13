@@ -1,0 +1,50 @@
+
+name: Auto Increment Version
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Increment patch version
+        run: |
+          python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          path = Path("version.txt")
+          current = path.read_text().strip()
+
+          match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", current)
+          if not match:
+              raise SystemExit(f"Invalid version.txt format: {current}")
+
+          major, minor, patch = map(int, match.groups())
+          new_version = f"v{major:02d}.{minor}.{patch + 1}"
+
+          path.write_text(new_version + "\n")
+          print(f"{current} -> {new_version}")
+          PY
+
+      - name: Commit updated version
+        run: |
+          git add version.txt
+          git commit -m "Bump version to $(cat version.txt)" || exit 0
+          git push origin HEAD:main
